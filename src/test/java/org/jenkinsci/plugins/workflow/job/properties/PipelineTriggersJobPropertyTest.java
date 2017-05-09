@@ -30,14 +30,12 @@ import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
 import hudson.model.Item;
 import hudson.model.Items;
-import hudson.model.TaskListener;
 import hudson.plugins.git.GitSCM;
 import hudson.triggers.SCMTrigger;
 import hudson.triggers.TimerTrigger;
 import hudson.triggers.Trigger;
-import hudson.util.StreamTaskListener;
 import jenkins.plugins.git.GitSampleRepoRule;
-import jenkins.plugins.git.GitStep;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -156,16 +154,22 @@ public class PipelineTriggersJobPropertyTest {
 
     @Issue("JENKINS-44153")
     @Test
-    public void triggerNotFromJenkinsfile() throws Exception {
+    public void triggerFromUI() throws Exception {
         sampleGitRepo.init();
         sampleGitRepo.write("Jenkinsfile", "node { git($/" + sampleGitRepo + "/$) }");
         sampleGitRepo.git("add", "Jenkinsfile");
         sampleGitRepo.git("commit", "--message=files");
 
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsScmFlowDefinition(new GitSCM(sampleGitRepo.toString()), "Jenkinsfile"));
-        p.addTrigger(new SCMTrigger(""));
-        p.save();
+        String newConfig = StringUtils.replace(org.apache.commons.io.IOUtils.toString(
+                PipelineTriggersJobPropertyTest.class.getResourceAsStream(
+                        "/org/jenkinsci/plugins/workflow/job/properties/PipelineTriggersJobPropertyTest/triggerFromUI.json"), "UTF-8"),
+                "__SAMPLE_REPO__", sampleGitRepo.toString());
+
+        submitConfig(newConfig, p);
+        SCMTrigger t = getTriggerFromList(SCMTrigger.class,
+                p.getTriggersJobProperty().getTriggers());
+        assertNotNull(t);
 
         sampleGitRepo.write("OtherFile", "something else");
         sampleGitRepo.git("add", "OtherFile");
@@ -213,17 +217,11 @@ public class PipelineTriggersJobPropertyTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "triggerPresent");
         assertNull(getTriggerFromList(QueryingMockTrigger.class,
                 p.getTriggersJobProperty().getTriggers()));
-        JenkinsRule.WebClient wc = r.createWebClient();
         String newConfig = org.apache.commons.io.IOUtils.toString(
                 PipelineTriggersJobPropertyTest.class.getResourceAsStream(
                         "/org/jenkinsci/plugins/workflow/job/properties/PipelineTriggersJobPropertyTest/triggerPresentDuringStart.json"), "UTF-8");
-        WebRequest request = new WebRequest(new URL(p.getAbsoluteUrl() + "configSubmit"), HttpMethod.POST);
-        wc.addCrumb(request);
-        List<NameValuePair> params = new ArrayList<>();
-        params.addAll(request.getRequestParameters());
-        params.add(new NameValuePair("json", newConfig));
-        request.setRequestParameters(params);
-        wc.getPage(request);
+
+        submitConfig(newConfig, p);
         QueryingMockTrigger t = getTriggerFromList(QueryingMockTrigger.class,
                 p.getTriggersJobProperty().getTriggers());
         assertNotNull(t);
@@ -239,6 +237,18 @@ public class PipelineTriggersJobPropertyTest {
         }
 
         return null;
+    }
+
+    private void submitConfig(String config, WorkflowJob p) throws Exception {
+        JenkinsRule.WebClient wc = r.createWebClient();
+
+        WebRequest request = new WebRequest(new URL(p.getAbsoluteUrl() + "configSubmit"), HttpMethod.POST);
+        wc.addCrumb(request);
+        List<NameValuePair> params = new ArrayList<>();
+        params.addAll(request.getRequestParameters());
+        params.add(new NameValuePair("json", config));
+        request.setRequestParameters(params);
+        wc.getPage(request);
     }
 }
 

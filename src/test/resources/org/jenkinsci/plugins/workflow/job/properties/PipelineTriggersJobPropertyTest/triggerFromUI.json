@@ -1,0 +1,62 @@
+{
+  "name": "trigger",
+  "description": "",
+  "properties": {
+    "stapler-class-bag": "true",
+    "jenkins-model-BuildDiscarderProperty": {
+      "specified": true,
+      "": "0",
+      "strategy": {
+        "daysToKeepStr": "",
+        "numToKeepStr": "10",
+        "artifactDaysToKeepStr": "",
+        "artifactNumToKeepStr": "",
+        "stapler-class": "hudson.tasks.LogRotator",
+        "$class": "hudson.tasks.LogRotator"
+      }
+    },
+    "org-jenkinsci-plugins-workflow-job-properties-DisableConcurrentBuildsJobProperty": {
+      "specified": false
+    },
+    "hudson-model-ParametersDefinitionProperty": {
+      "specified": false
+    },
+    "jenkins-branch-RateLimitBranchProperty$JobPropertyImpl": {
+    },
+    "org-jenkinsci-plugins-workflow-job-properties-PipelineTriggersJobProperty": {
+      "triggers": {
+        "stapler-class-bag": "true",
+        "hudson-triggers-SCMTrigger": {
+          "scmpoll_spec": "",
+          "ignorePostCommitHooks": false
+        }
+      }
+    }
+  },
+  "hasCustomQuietPeriod": false,
+  "quiet_period": "5",
+  "displayNameOrNull": "",
+  "": "1",
+  "definition": {
+    "": "0",
+    "scm": {
+      "userRemoteConfigs": {
+        "url": "__SAMPLE_REPO__",
+        "credentialsId": "",
+        "name": "",
+        "refspec": ""
+      },
+      "branches": {
+        "name": "*/master"
+      },
+      "": "auto",
+      "stapler-class": "hudson.plugins.git.GitSCM",
+      "$class": "hudson.plugins.git.GitSCM"
+    },
+    "scriptPath": "Jenkinsfile",
+    "lightweight": true,
+    "stapler-class": "org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition",
+    "$class": "org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition"
+  },
+  "core:apply": ""
+}
