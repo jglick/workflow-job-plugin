@@ -30,9 +30,17 @@ import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
 import hudson.model.Item;
 import hudson.model.Items;
+import hudson.model.TaskListener;
+import hudson.plugins.git.GitSCM;
+import hudson.triggers.SCMTrigger;
 import hudson.triggers.TimerTrigger;
 import hudson.triggers.Trigger;
+import hudson.util.StreamTaskListener;
+import jenkins.plugins.git.GitSampleRepoRule;
+import jenkins.plugins.git.GitStep;
+import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -57,6 +65,8 @@ public class PipelineTriggersJobPropertyTest {
     public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule
     public JenkinsRule r = new JenkinsRule();
+    @Rule
+    public GitSampleRepoRule sampleGitRepo = new GitSampleRepoRule();
 
     /**
      * Needed to ensure that we get a fresh {@code startsAndStops} with each test run. Has to be *after* rather than
@@ -142,6 +152,30 @@ public class PipelineTriggersJobPropertyTest {
 
         assertNotNull(((MockTrigger)mockFromProp).currentStatus());
         assertEquals("[null, false, null, false, null, false]", MockTrigger.startsAndStops.toString());
+    }
+
+    @Issue("JENKINS-44153")
+    @Test
+    public void triggerNotFromJenkinsfile() throws Exception {
+        sampleGitRepo.init();
+        sampleGitRepo.write("Jenkinsfile", "node { git($/" + sampleGitRepo + "/$) }");
+        sampleGitRepo.git("add", "Jenkinsfile");
+        sampleGitRepo.git("commit", "--message=files");
+
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsScmFlowDefinition(new GitSCM(sampleGitRepo.toString()), "Jenkinsfile"));
+        p.addTrigger(new SCMTrigger(""));
+        p.save();
+
+        sampleGitRepo.write("OtherFile", "something else");
+        sampleGitRepo.git("add", "OtherFile");
+        sampleGitRepo.git("commit", "--message=files");
+        sampleGitRepo.notifyCommit(r);
+
+        WorkflowRun b = p.getLastBuild();
+        assertNotNull(b);
+        assertEquals(1, b.number);
+        r.assertLogContains("Cloning the remote Git repository", b);
     }
 
     @Test
