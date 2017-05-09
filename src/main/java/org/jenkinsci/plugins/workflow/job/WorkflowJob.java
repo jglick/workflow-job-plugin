@@ -91,6 +91,7 @@ import jenkins.triggers.SCMTriggerItem;
 import jenkins.util.TimeDuration;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
+import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
 import org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty;
@@ -552,13 +553,18 @@ public final class WorkflowJob extends Job<WorkflowJob,WorkflowRun> implements B
         if (b == null) {
             b = getLastCompletedBuild();
         }
-        if (b == null) {
+        if (b == null && !(getDefinition() instanceof CpsScmFlowDefinition)) {
             return Collections.emptySet();
         }
+        if ((b == null || b.checkouts(null).isEmpty()) && getDefinition() instanceof CpsScmFlowDefinition) {
+            return Collections.singleton(((CpsScmFlowDefinition)getDefinition()).getScm());
+        }
+
         Map<String,SCM> scms = new LinkedHashMap<>();
         for (WorkflowRun.SCMCheckout co : b.checkouts(null)) {
             scms.put(co.scm.getKey(), co.scm);
         }
+
         return scms.values();
     }
 
